@@ -1,6 +1,7 @@
 'use strict';
 
 import { fetchFakerData } from './functions.js';
+import { saveVote, getVotes } from './firebase.js';
 
 // Función para renderizar las cards
 const renderCards = (items) => {
@@ -46,7 +47,73 @@ const loadData = async () => {
     }
 };
 
+// Función para mostrar los votos en una tabla
+const displayVotes = async () => {
+    const resultsContainer = document.getElementById('results');
+    if (!resultsContainer) return;
+
+    const response = await getVotes();
+    if (!response.success || !response.data) {
+        resultsContainer.innerHTML = '<p>No hay votos registrados.</p>';
+        return;
+    }
+
+    // Contar votos por producto
+    const votes = response.data;
+    const voteCounts = {};
+    Object.values(votes).forEach(vote => {
+        if (vote.productID) {
+            voteCounts[vote.productID] = (voteCounts[vote.productID] || 0) + 1;
+        }
+    });
+
+    // Crear tabla
+    let table = `
+        <table>
+            <thead>
+                <tr>
+                    <th>Producto</th>
+                    <th>Total de votos</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    Object.entries(voteCounts).forEach(([productID, count]) => {
+        table += `
+            <tr>
+                <td>${productID}</td>
+                <td>${count}</td>
+            </tr>
+        `;
+    });
+    table += `
+            </tbody>
+        </table>
+    `;
+
+    resultsContainer.innerHTML = table;
+};
+
+// Nueva función para habilitar el formulario de votación
+const enableForm = () => {
+    const form = document.getElementById('form_voting');
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('select_product');
+        if (!input) return;
+
+        const productID = input.value;
+        await saveVote(productID);
+        form.reset();
+        await displayVotes();
+    });
+};
+
 // Función de autoejecución
 (() => {
     loadData();
+    enableForm();
+    displayVotes();
 })();
